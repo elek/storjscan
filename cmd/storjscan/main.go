@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"storj.io/storjscan/wallets"
 
@@ -42,7 +43,20 @@ var (
 		Short: "Generated deterministic wallet addresses and register them to the db",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, _ := process.Ctx(cmd)
-			return wallets.Generate(ctx, generateCfg.Address, generateCfg.Key)
+			return wallets.Generate(ctx, generateCfg)
+		},
+	}
+
+	mnemonicCmd = &cobra.Command{
+		Use:   "mnemonic",
+		Short: "Print out a random mnemonic usable for generating addresses.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			m, err := wallets.Mnemonic()
+			if err != nil {
+				return err
+			}
+			fmt.Println(m)
+			return nil
 		},
 	}
 )
@@ -51,7 +65,9 @@ func init() {
 	defaults := cfgstruct.DefaultsFlag(rootCmd)
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(generateCmd)
+	rootCmd.AddCommand(mnemonicCmd)
 	process.Bind(runCmd, &runCfg, defaults)
+	process.Bind(generateCmd, &generateCfg, defaults)
 }
 
 func main() {
@@ -67,6 +83,11 @@ func run(ctx context.Context, config storjscan.Config) error {
 	}()
 
 	db, err := storjscandb.Open(ctx, logger.Named("storjscandb"), config.Database)
+	if err != nil {
+		return err
+	}
+
+	err = db.MigrateToLatest(ctx)
 	if err != nil {
 		return err
 	}

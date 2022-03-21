@@ -38,12 +38,12 @@ func NewEndpoint(log *zap.Logger, wallets Wallets) *Endpoint {
 
 // Register registers endpoint methods on API server subroute.
 func (endpoint *Endpoint) Register(router *mux.Router) {
-	router.HandleFunc("/wallets/claim", endpoint.GetNewDepositAddress).Methods(http.MethodPost)
-	router.HandleFunc("/wallets", endpoint.SaveNewDepositAddress).Methods(http.MethodPost)
-	router.HandleFunc("/wallets/count", endpoint.GetCountDepositAddresses).Methods(http.MethodGet)
-	router.HandleFunc("/wallets/count/claimed", endpoint.GetCountClaimedDepositAddresses).Methods(http.MethodGet)
-	router.HandleFunc("/wallets/count/unclaimed", endpoint.GetCountUnclaimedDepositAddresses).Methods(http.MethodGet)
-	router.HandleFunc("/wallets/{address}", endpoint.GetAccount).Methods(http.MethodGet)
+	router.HandleFunc("/claim", endpoint.GetNewDepositAddress).Methods(http.MethodPost)
+	router.HandleFunc("/", endpoint.SaveNewDepositAddress).Methods(http.MethodPost)
+	router.HandleFunc("/count", endpoint.GetCountDepositAddresses).Methods(http.MethodGet)
+	router.HandleFunc("/count/claimed", endpoint.GetCountClaimedDepositAddresses).Methods(http.MethodGet)
+	router.HandleFunc("/count/unclaimed", endpoint.GetCountUnclaimedDepositAddresses).Methods(http.MethodGet)
+	router.HandleFunc("/{address}", endpoint.GetAccount).Methods(http.MethodGet)
 }
 
 // GetNewDepositAddress returns a new deposit address.

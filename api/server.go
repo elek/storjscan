@@ -36,32 +36,32 @@ type Server struct {
 	log      *zap.Logger
 	apiKeys  [][]byte
 	listener net.Listener
-	router   *mux.Router
+	root     *mux.Router
 	http     http.Server
 }
 
 // NewServer creates new API server instance.
 func NewServer(log *zap.Logger, listener net.Listener, apiKeys [][]byte) *Server {
 	router := mux.NewRouter()
-	router.Name("api").PathPrefix("/api/v0")
+	router.StrictSlash(true)
 
-	return &Server{
+	server := &Server{
 		log:      log,
 		apiKeys:  apiKeys,
 		listener: listener,
-		router:   router,
+		root:     router.Name("api").PathPrefix("/api/v0").Subrouter(),
 		http: http.Server{
 			Handler: router,
 		},
 	}
+
+	router.Use(server.authorize)
+	return server
 }
 
 // NewAPI creates new API route and register endpoint methods.
 func (server *Server) NewAPI(path string, register func(*mux.Router)) {
-	apiRouter := server.router.GetRoute("api").Subrouter()
-	router := apiRouter.PathPrefix(path).Subrouter()
-	router.StrictSlash(true)
-	apiRouter.Use(server.authorize)
+	router := server.root.PathPrefix(path).Subrouter()
 	register(router)
 }
 

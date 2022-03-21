@@ -86,6 +86,14 @@ func NewApp(log *zap.Logger, config Config, db DB) (*App, error) {
 		app.Tokens.Endpoint = tokens.NewEndpoint(log.Named("tokens:endpoint"), app.Tokens.Service)
 	}
 
+	{ // wallets
+		walletService, err := wallets.NewHD(log.Named("wallets:endpoint"), db.Wallets())
+		if err != nil {
+			return nil, err
+		}
+		app.Wallets.Endpoint = wallets.NewEndpoint(log.Named("wallets:endpoint"), walletService)
+	}
+
 	{ // API
 		var err error
 
@@ -100,15 +108,13 @@ func NewApp(log *zap.Logger, config Config, db DB) (*App, error) {
 		}
 		app.API.Server = api.NewServer(log.Named("api:server"), app.API.Listener, apiKeys)
 		app.API.Server.NewAPI("/tokens", app.Tokens.Endpoint.Register)
+		app.API.Server.NewAPI("/wallets", app.Wallets.Endpoint.Register)
 
 		app.Servers.Add(lifecycle.Item{
 			Name:  "api",
 			Run:   app.API.Server.Run,
 			Close: app.API.Server.Close,
 		})
-	}
-	{ // wallets
-		//TODO
 	}
 
 	return app, nil
