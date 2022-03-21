@@ -5,6 +5,7 @@ package wallets
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"time"
 
 	acc "github.com/ethereum/go-ethereum/accounts"
@@ -32,6 +33,8 @@ type Wallets interface {
 	GetCountClaimedDepositAddresses(ctx context.Context, claimed bool) (int, error)
 	// GetAccount returns the info related to an address
 	GetAccount(ctx context.Context, address []byte) (Account, error)
+	// RegisterDepositAddresses saves new addresses available for claim.
+	RegisterDepositAddresses(ctx context.Context, addresses []common.Address) error
 	// Setup is used to create wallets for test purposes
 	Setup(ctx context.Context, size int) ([]byte, error)
 }
@@ -47,6 +50,8 @@ type HD struct {
 	log *zap.Logger
 	db  *storjscandb.WalletsDB
 }
+
+var _ Wallets = &HD{}
 
 // NewHD creates a new HD struct.
 func NewHD(log *zap.Logger, db *storjscandb.WalletsDB) (*HD, error) {
@@ -65,6 +70,15 @@ func (hd *HD) GetNewDepositAddress(ctx context.Context) (address []byte, err err
 	}
 	_, err = hd.db.Claim(ctx, wallet.Address)
 	return wallet.Address, ErrWalletsService.Wrap(err)
+}
+
+func (hd *HD) RegisterDepositAddresses(ctx context.Context, addresses []common.Address) error {
+	var addressesBytes [][]byte
+
+	for _, a := range addresses {
+		addressesBytes = append(addressesBytes, a.Bytes())
+	}
+	return hd.db.CreateBatch(ctx, addressesBytes)
 }
 
 // CountTotal returns the total number of deposit addresses.
@@ -99,6 +113,8 @@ type HD_test struct {
 	wallet *mm.Wallet
 }
 
+var _ Wallets = &HD_test{}
+
 // NewHD_test creates a new HD_test struct.
 func NewHD_test(log *zap.Logger, db *storjscandb.WalletsDB) (*HD_test, error) {
 	seed, err := mm.NewSeed()
@@ -114,6 +130,12 @@ func NewHD_test(log *zap.Logger, db *storjscandb.WalletsDB) (*HD_test, error) {
 		db:     db,
 		wallet: w,
 	}, nil
+}
+
+// RegisterDepositAddresses saves new addresses available for claim.
+func (hd *HD_test) RegisterDepositAddresses(ctx context.Context, addresses []common.Address) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 // GetNewDepositAddress returns the next unclaimed deposit address and claims it.

@@ -4,8 +4,12 @@
 package wallets
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"github.com/ethereum/go-ethereum/common"
+	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/zeebo/errs"
@@ -34,7 +38,8 @@ func NewEndpoint(log *zap.Logger, wallets Wallets) *Endpoint {
 
 // Register registers endpoint methods on API server subroute.
 func (endpoint *Endpoint) Register(router *mux.Router) {
-	router.HandleFunc("/wallets", endpoint.GetNewDepositAddress).Methods(http.MethodGet)
+	router.HandleFunc("/wallets/claim", endpoint.GetNewDepositAddress).Methods(http.MethodPost)
+	router.HandleFunc("/wallets", endpoint.SaveNewDepositAddress).Methods(http.MethodPost)
 	router.HandleFunc("/wallets/count", endpoint.GetCountDepositAddresses).Methods(http.MethodGet)
 	router.HandleFunc("/wallets/count/claimed", endpoint.GetCountClaimedDepositAddresses).Methods(http.MethodGet)
 	router.HandleFunc("/wallets/count/unclaimed", endpoint.GetCountUnclaimedDepositAddresses).Methods(http.MethodGet)
@@ -58,6 +63,42 @@ func (endpoint *Endpoint) GetNewDepositAddress(w http.ResponseWriter, r *http.Re
 		endpoint.log.Error("failed to write json wallets response", zap.Error(ErrEndpoint.Wrap(err)))
 		return
 	}
+}
+
+// SaveNewDepositAddress returns a new deposit address.
+func (endpoint *Endpoint) SaveNewDepositAddress(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var err error
+	defer mon.Task()(&ctx)(&err)
+
+	var addresses []string
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		endpoint.serveJSONError(w, http.StatusBadRequest, ErrEndpoint.Wrap(err))
+		return
+	}
+	err = json.Unmarshal(body, &addresses)
+	if err != nil {
+		endpoint.serveJSONError(w, http.StatusBadRequest, ErrEndpoint.Wrap(err))
+		return
+	}
+
+	var parsedAddresses []common.Address
+	for _, a := range addresses {
+		a = strings.TrimPrefix(a, "0x")
+		parsed, err := hex.DecodeString(a)
+		if err != nil {
+			endpoint.serveJSONError(w, http.StatusBadRequest, ErrEndpoint.Wrap(err))
+		}
+
+		parsedAddresses = append(parsedAddresses, common.BytesToAddress(parsed))
+	}
+	err = endpoint.service.RegisterDepositAddresses(ctx, parsedAddresses)
+	if err != nil {
+		endpoint.serveJSONError(w, http.StatusBadRequest, ErrEndpoint.Wrap(err))
+		return
+	}
+
 }
 
 // GetCountDepositAddresses returns the total number of deposit addresses in the storjscan database.

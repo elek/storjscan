@@ -40,7 +40,7 @@ func TestEndpoint(t *testing.T) {
 	require.NoError(t, err)
 
 	endpoint := wallets.NewEndpoint(logger.Named("endpoint"), service)
-	apiServer := api.NewServer(logger, lis)
+	apiServer := api.NewServer(logger, lis, [][]byte{[]byte("secret")})
 	apiServer.NewAPI("/example", endpoint.Register)
 
 	ctx.Go(func() error {
