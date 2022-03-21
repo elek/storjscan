@@ -323,6 +323,12 @@ func (obj *pgxDB) Schema() string {
 	created_at timestamp with time zone NOT NULL DEFAULT current_timestamp,
 	PRIMARY KEY ( hash )
 );
+CREATE TABLE wallets (
+	address bytea NOT NULL,
+	claimed timestamp with time zone,
+	created_at timestamp with time zone NOT NULL DEFAULT current_timestamp,
+	PRIMARY KEY ( address )
+);
 CREATE INDEX block_header_timestamp ON block_headers ( timestamp ) ;`
 }
 
@@ -474,6 +480,92 @@ func (f BlockHeader_CreatedAt_Field) value() interface{} {
 }
 
 func (BlockHeader_CreatedAt_Field) _Column() string { return "created_at" }
+
+type Wallet struct {
+	Address   []byte
+	Claimed   *time.Time
+	CreatedAt time.Time
+}
+
+func (Wallet) _Table() string { return "wallets" }
+
+type Wallet_Create_Fields struct {
+	Claimed Wallet_Claimed_Field
+}
+
+type Wallet_Update_Fields struct {
+	Claimed Wallet_Claimed_Field
+}
+
+type Wallet_Address_Field struct {
+	_set   bool
+	_null  bool
+	_value []byte
+}
+
+func Wallet_Address(v []byte) Wallet_Address_Field {
+	return Wallet_Address_Field{_set: true, _value: v}
+}
+
+func (f Wallet_Address_Field) value() interface{} {
+	if !f._set || f._null {
+		return nil
+	}
+	return f._value
+}
+
+func (Wallet_Address_Field) _Column() string { return "address" }
+
+type Wallet_Claimed_Field struct {
+	_set   bool
+	_null  bool
+	_value *time.Time
+}
+
+func Wallet_Claimed(v time.Time) Wallet_Claimed_Field {
+	return Wallet_Claimed_Field{_set: true, _value: &v}
+}
+
+func Wallet_Claimed_Raw(v *time.Time) Wallet_Claimed_Field {
+	if v == nil {
+		return Wallet_Claimed_Null()
+	}
+	return Wallet_Claimed(*v)
+}
+
+func Wallet_Claimed_Null() Wallet_Claimed_Field {
+	return Wallet_Claimed_Field{_set: true, _null: true}
+}
+
+func (f Wallet_Claimed_Field) isnull() bool { return !f._set || f._null || f._value == nil }
+
+func (f Wallet_Claimed_Field) value() interface{} {
+	if !f._set || f._null {
+		return nil
+	}
+	return f._value
+}
+
+func (Wallet_Claimed_Field) _Column() string { return "claimed" }
+
+type Wallet_CreatedAt_Field struct {
+	_set   bool
+	_null  bool
+	_value time.Time
+}
+
+func Wallet_CreatedAt(v time.Time) Wallet_CreatedAt_Field {
+	return Wallet_CreatedAt_Field{_set: true, _value: v}
+}
+
+func (f Wallet_CreatedAt_Field) value() interface{} {
+	if !f._set || f._null {
+		return nil
+	}
+	return f._value
+}
+
+func (Wallet_CreatedAt_Field) _Column() string { return "created_at" }
 
 func toUTC(t time.Time) time.Time {
 	return t.UTC()
@@ -926,6 +1018,35 @@ func (obj *pgxImpl) Create_BlockHeader(ctx context.Context,
 
 }
 
+func (obj *pgxImpl) Create_Wallet(ctx context.Context,
+	wallet_address Wallet_Address_Field,
+	optional Wallet_Create_Fields) (
+	wallet *Wallet, err error) {
+	defer mon.Task()(&ctx)(&err)
+	__address_val := wallet_address.value()
+	__claimed_val := optional.Claimed.value()
+
+	var __columns = &__sqlbundle_Hole{SQL: __sqlbundle_Literal("address, claimed")}
+	var __placeholders = &__sqlbundle_Hole{SQL: __sqlbundle_Literal("?, ?")}
+	var __clause = &__sqlbundle_Hole{SQL: __sqlbundle_Literals{Join: "", SQLs: []__sqlbundle_SQL{__sqlbundle_Literal("("), __columns, __sqlbundle_Literal(") VALUES ("), __placeholders, __sqlbundle_Literal(")")}}}
+
+	var __embed_stmt = __sqlbundle_Literals{Join: "", SQLs: []__sqlbundle_SQL{__sqlbundle_Literal("INSERT INTO wallets "), __clause, __sqlbundle_Literal(" RETURNING wallets.address, wallets.claimed, wallets.created_at")}}
+
+	var __values []interface{}
+	__values = append(__values, __address_val, __claimed_val)
+
+	var __stmt = __sqlbundle_Render(obj.dialect, __embed_stmt)
+	obj.logStmt(__stmt, __values...)
+
+	wallet = &Wallet{}
+	err = obj.queryRowContext(ctx, __stmt, __values...).Scan(&wallet.Address, &wallet.Claimed, &wallet.CreatedAt)
+	if err != nil {
+		return nil, obj.makeErr(err)
+	}
+	return wallet, nil
+
+}
+
 func (obj *pgxImpl) All_BlockHeader_OrderBy_Desc_Timestamp(ctx context.Context) (
 	rows []*BlockHeader, err error) {
 	defer mon.Task()(&ctx)(&err)
@@ -1096,6 +1217,174 @@ func (obj *pgxImpl) First_BlockHeader_By_Timestamp_Greater(ctx context.Context,
 
 }
 
+func (obj *pgxImpl) Get_Wallet_By_Address(ctx context.Context,
+	wallet_address Wallet_Address_Field) (
+	wallet *Wallet, err error) {
+	defer mon.Task()(&ctx)(&err)
+
+	var __embed_stmt = __sqlbundle_Literal("SELECT wallets.address, wallets.claimed, wallets.created_at FROM wallets WHERE wallets.address = ?")
+
+	var __values []interface{}
+	__values = append(__values, wallet_address.value())
+
+	var __stmt = __sqlbundle_Render(obj.dialect, __embed_stmt)
+	obj.logStmt(__stmt, __values...)
+
+	wallet = &Wallet{}
+	err = obj.queryRowContext(ctx, __stmt, __values...).Scan(&wallet.Address, &wallet.Claimed, &wallet.CreatedAt)
+	if err != nil {
+		return (*Wallet)(nil), obj.makeErr(err)
+	}
+	return wallet, nil
+
+}
+
+func (obj *pgxImpl) First_Wallet_By_Claimed_Is_Null(ctx context.Context) (
+	wallet *Wallet, err error) {
+	defer mon.Task()(&ctx)(&err)
+
+	var __embed_stmt = __sqlbundle_Literal("SELECT wallets.address, wallets.claimed, wallets.created_at FROM wallets WHERE wallets.claimed is NULL LIMIT 1 OFFSET 0")
+
+	var __values []interface{}
+
+	var __stmt = __sqlbundle_Render(obj.dialect, __embed_stmt)
+	obj.logStmt(__stmt, __values...)
+
+	for {
+		wallet, err = func() (wallet *Wallet, err error) {
+			__rows, err := obj.driver.QueryContext(ctx, __stmt, __values...)
+			if err != nil {
+				return nil, err
+			}
+			defer __rows.Close()
+
+			if !__rows.Next() {
+				if err := __rows.Err(); err != nil {
+					return nil, err
+				}
+				return nil, nil
+			}
+
+			wallet = &Wallet{}
+			err = __rows.Scan(&wallet.Address, &wallet.Claimed, &wallet.CreatedAt)
+			if err != nil {
+				return nil, err
+			}
+
+			return wallet, nil
+		}()
+		if err != nil {
+			if obj.shouldRetry(err) {
+				continue
+			}
+			return nil, obj.makeErr(err)
+		}
+		return wallet, nil
+	}
+
+}
+
+func (obj *pgxImpl) Count_Wallet_Address(ctx context.Context) (
+	count int64, err error) {
+	defer mon.Task()(&ctx)(&err)
+
+	var __embed_stmt = __sqlbundle_Literal("SELECT COUNT(*) FROM wallets")
+
+	var __values []interface{}
+
+	var __stmt = __sqlbundle_Render(obj.dialect, __embed_stmt)
+	obj.logStmt(__stmt, __values...)
+
+	err = obj.queryRowContext(ctx, __stmt, __values...).Scan(&count)
+	if err != nil {
+		return 0, obj.makeErr(err)
+	}
+
+	return count, nil
+
+}
+
+func (obj *pgxImpl) Count_Wallet_By_Claimed_IsNot_Null(ctx context.Context) (
+	count int64, err error) {
+	defer mon.Task()(&ctx)(&err)
+
+	var __embed_stmt = __sqlbundle_Literal("SELECT COUNT(*) FROM wallets WHERE wallets.claimed is not NULL")
+
+	var __values []interface{}
+
+	var __stmt = __sqlbundle_Render(obj.dialect, __embed_stmt)
+	obj.logStmt(__stmt, __values...)
+
+	err = obj.queryRowContext(ctx, __stmt, __values...).Scan(&count)
+	if err != nil {
+		return 0, obj.makeErr(err)
+	}
+
+	return count, nil
+
+}
+
+func (obj *pgxImpl) Count_Wallet_By_Claimed_Is_Null(ctx context.Context) (
+	count int64, err error) {
+	defer mon.Task()(&ctx)(&err)
+
+	var __embed_stmt = __sqlbundle_Literal("SELECT COUNT(*) FROM wallets WHERE wallets.claimed is NULL")
+
+	var __values []interface{}
+
+	var __stmt = __sqlbundle_Render(obj.dialect, __embed_stmt)
+	obj.logStmt(__stmt, __values...)
+
+	err = obj.queryRowContext(ctx, __stmt, __values...).Scan(&count)
+	if err != nil {
+		return 0, obj.makeErr(err)
+	}
+
+	return count, nil
+
+}
+
+func (obj *pgxImpl) Update_Wallet_By_Address(ctx context.Context,
+	wallet_address Wallet_Address_Field,
+	update Wallet_Update_Fields) (
+	wallet *Wallet, err error) {
+	defer mon.Task()(&ctx)(&err)
+	var __sets = &__sqlbundle_Hole{}
+
+	var __embed_stmt = __sqlbundle_Literals{Join: "", SQLs: []__sqlbundle_SQL{__sqlbundle_Literal("UPDATE wallets SET "), __sets, __sqlbundle_Literal(" WHERE wallets.address = ? RETURNING wallets.address, wallets.claimed, wallets.created_at")}}
+
+	__sets_sql := __sqlbundle_Literals{Join: ", "}
+	var __values []interface{}
+	var __args []interface{}
+
+	if update.Claimed._set {
+		__values = append(__values, update.Claimed.value())
+		__sets_sql.SQLs = append(__sets_sql.SQLs, __sqlbundle_Literal("claimed = ?"))
+	}
+
+	if len(__sets_sql.SQLs) == 0 {
+		return nil, emptyUpdate()
+	}
+
+	__args = append(__args, wallet_address.value())
+
+	__values = append(__values, __args...)
+	__sets.SQL = __sets_sql
+
+	var __stmt = __sqlbundle_Render(obj.dialect, __embed_stmt)
+	obj.logStmt(__stmt, __values...)
+
+	wallet = &Wallet{}
+	err = obj.queryRowContext(ctx, __stmt, __values...).Scan(&wallet.Address, &wallet.Claimed, &wallet.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, obj.makeErr(err)
+	}
+	return wallet, nil
+}
+
 func (obj *pgxImpl) Delete_BlockHeader_By_Hash(ctx context.Context,
 	block_header_hash BlockHeader_Hash_Field) (
 	deleted bool, err error) {
@@ -1137,6 +1426,16 @@ func (obj *pgxImpl) deleteAll(ctx context.Context) (count int64, err error) {
 	defer mon.Task()(&ctx)(&err)
 	var __res sql.Result
 	var __count int64
+	__res, err = obj.driver.ExecContext(ctx, "DELETE FROM wallets;")
+	if err != nil {
+		return 0, obj.makeErr(err)
+	}
+
+	__count, err = __res.RowsAffected()
+	if err != nil {
+		return 0, obj.makeErr(err)
+	}
+	count += __count
 	__res, err = obj.driver.ExecContext(ctx, "DELETE FROM block_headers;")
 	if err != nil {
 		return 0, obj.makeErr(err)
@@ -1203,6 +1502,33 @@ func (rx *Rx) All_BlockHeader_OrderBy_Desc_Timestamp(ctx context.Context) (
 	return tx.All_BlockHeader_OrderBy_Desc_Timestamp(ctx)
 }
 
+func (rx *Rx) Count_Wallet_Address(ctx context.Context) (
+	count int64, err error) {
+	var tx *Tx
+	if tx, err = rx.getTx(ctx); err != nil {
+		return
+	}
+	return tx.Count_Wallet_Address(ctx)
+}
+
+func (rx *Rx) Count_Wallet_By_Claimed_IsNot_Null(ctx context.Context) (
+	count int64, err error) {
+	var tx *Tx
+	if tx, err = rx.getTx(ctx); err != nil {
+		return
+	}
+	return tx.Count_Wallet_By_Claimed_IsNot_Null(ctx)
+}
+
+func (rx *Rx) Count_Wallet_By_Claimed_Is_Null(ctx context.Context) (
+	count int64, err error) {
+	var tx *Tx
+	if tx, err = rx.getTx(ctx); err != nil {
+		return
+	}
+	return tx.Count_Wallet_By_Claimed_Is_Null(ctx)
+}
+
 func (rx *Rx) Create_BlockHeader(ctx context.Context,
 	block_header_hash BlockHeader_Hash_Field,
 	block_header_number BlockHeader_Number_Field,
@@ -1213,6 +1539,18 @@ func (rx *Rx) Create_BlockHeader(ctx context.Context,
 		return
 	}
 	return tx.Create_BlockHeader(ctx, block_header_hash, block_header_number, block_header_timestamp)
+
+}
+
+func (rx *Rx) Create_Wallet(ctx context.Context,
+	wallet_address Wallet_Address_Field,
+	optional Wallet_Create_Fields) (
+	wallet *Wallet, err error) {
+	var tx *Tx
+	if tx, err = rx.getTx(ctx); err != nil {
+		return
+	}
+	return tx.Create_Wallet(ctx, wallet_address, optional)
 
 }
 
@@ -1236,6 +1574,15 @@ func (rx *Rx) First_BlockHeader_By_Timestamp_Greater(ctx context.Context,
 	return tx.First_BlockHeader_By_Timestamp_Greater(ctx, block_header_timestamp_greater)
 }
 
+func (rx *Rx) First_Wallet_By_Claimed_Is_Null(ctx context.Context) (
+	wallet *Wallet, err error) {
+	var tx *Tx
+	if tx, err = rx.getTx(ctx); err != nil {
+		return
+	}
+	return tx.First_Wallet_By_Claimed_Is_Null(ctx)
+}
+
 func (rx *Rx) Get_BlockHeader_By_Hash(ctx context.Context,
 	block_header_hash BlockHeader_Hash_Field) (
 	block_header *BlockHeader, err error) {
@@ -1256,15 +1603,50 @@ func (rx *Rx) Get_BlockHeader_By_Number(ctx context.Context,
 	return tx.Get_BlockHeader_By_Number(ctx, block_header_number)
 }
 
+func (rx *Rx) Get_Wallet_By_Address(ctx context.Context,
+	wallet_address Wallet_Address_Field) (
+	wallet *Wallet, err error) {
+	var tx *Tx
+	if tx, err = rx.getTx(ctx); err != nil {
+		return
+	}
+	return tx.Get_Wallet_By_Address(ctx, wallet_address)
+}
+
+func (rx *Rx) Update_Wallet_By_Address(ctx context.Context,
+	wallet_address Wallet_Address_Field,
+	update Wallet_Update_Fields) (
+	wallet *Wallet, err error) {
+	var tx *Tx
+	if tx, err = rx.getTx(ctx); err != nil {
+		return
+	}
+	return tx.Update_Wallet_By_Address(ctx, wallet_address, update)
+}
+
 type Methods interface {
 	All_BlockHeader_OrderBy_Desc_Timestamp(ctx context.Context) (
 		rows []*BlockHeader, err error)
+
+	Count_Wallet_Address(ctx context.Context) (
+		count int64, err error)
+
+	Count_Wallet_By_Claimed_IsNot_Null(ctx context.Context) (
+		count int64, err error)
+
+	Count_Wallet_By_Claimed_Is_Null(ctx context.Context) (
+		count int64, err error)
 
 	Create_BlockHeader(ctx context.Context,
 		block_header_hash BlockHeader_Hash_Field,
 		block_header_number BlockHeader_Number_Field,
 		block_header_timestamp BlockHeader_Timestamp_Field) (
 		block_header *BlockHeader, err error)
+
+	Create_Wallet(ctx context.Context,
+		wallet_address Wallet_Address_Field,
+		optional Wallet_Create_Fields) (
+		wallet *Wallet, err error)
 
 	Delete_BlockHeader_By_Hash(ctx context.Context,
 		block_header_hash BlockHeader_Hash_Field) (
@@ -1274,6 +1656,9 @@ type Methods interface {
 		block_header_timestamp_greater BlockHeader_Timestamp_Field) (
 		block_header *BlockHeader, err error)
 
+	First_Wallet_By_Claimed_Is_Null(ctx context.Context) (
+		wallet *Wallet, err error)
+
 	Get_BlockHeader_By_Hash(ctx context.Context,
 		block_header_hash BlockHeader_Hash_Field) (
 		block_header *BlockHeader, err error)
@@ -1281,6 +1666,15 @@ type Methods interface {
 	Get_BlockHeader_By_Number(ctx context.Context,
 		block_header_number BlockHeader_Number_Field) (
 		block_header *BlockHeader, err error)
+
+	Get_Wallet_By_Address(ctx context.Context,
+		wallet_address Wallet_Address_Field) (
+		wallet *Wallet, err error)
+
+	Update_Wallet_By_Address(ctx context.Context,
+		wallet_address Wallet_Address_Field,
+		update Wallet_Update_Fields) (
+		wallet *Wallet, err error)
 }
 
 type TxMethods interface {

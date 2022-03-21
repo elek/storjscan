@@ -82,6 +82,11 @@ func (db *DB) MigrateToLatest(ctx context.Context) error {
 	return migration.Run(ctx, db.log)
 }
 
+// Wallets creates new WalletsDB with current DB connection.
+func (db *DB) Wallets() *WalletsDB {
+	return &WalletsDB{db: db.DB}
+}
+
 // PostgresMigration returns steps needed for migrating postgres database.
 func (db *DB) PostgresMigration() *migrate.Migration {
 	return &migrate.Migration{
@@ -100,6 +105,19 @@ func (db *DB) PostgresMigration() *migrate.Migration {
 						PRIMARY KEY ( hash )
 					);
 					CREATE INDEX block_header_timestamp ON block_headers ( timestamp ) ;`,
+				},
+			},
+			{
+				DB:          &db.migrationDB,
+				Description: "Create wallets table",
+				Version:     1,
+				Action: migrate.SQL{
+					`CREATE TABLE wallets (
+						address bytea NOT NULL,
+						claimed timestamp with time zone,
+						created_at timestamp with time zone NOT NULL DEFAULT current_timestamp,
+						PRIMARY KEY ( address )
+					);`,
 				},
 			},
 		},

@@ -11,6 +11,8 @@ import (
 	"github.com/spacemonkeygo/monkit/v3"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"storj.io/storjscan/storjscandb"
+	"storj.io/storjscan/wallets"
 
 	"storj.io/private/debug"
 	"storj.io/storj/private/lifecycle"
@@ -30,6 +32,7 @@ type Config struct {
 
 // DB is a collection of storjscan databases.
 type DB interface {
+	Wallets() *storjscandb.WalletsDB
 }
 
 // App is the storjscan process that runs API endpoint.
@@ -53,6 +56,11 @@ type App struct {
 	API struct {
 		Listener net.Listener
 		Server   *api.Server
+	}
+
+	Wallets struct {
+		Service  *wallets.Wallets
+		Endpoint *wallets.Endpoint
 	}
 }
 
@@ -98,6 +106,9 @@ func NewApp(log *zap.Logger, config Config, db DB) (*App, error) {
 			Run:   app.API.Server.Run,
 			Close: app.API.Server.Close,
 		})
+	}
+	{ // wallets
+		//TODO
 	}
 
 	return app, nil
