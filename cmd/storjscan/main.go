@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"log"
+	"storj.io/storjscan/wallets"
 
 	"github.com/spf13/cobra"
 
@@ -24,6 +25,8 @@ var (
 		Use:   "storjscan",
 		Short: "STORJ token payment management service",
 	}
+
+	runCfg storjscan.Config
 	runCmd = &cobra.Command{
 		Use:   "run",
 		Short: "Start payment listener daemon",
@@ -32,12 +35,22 @@ var (
 			return run(ctx, runCfg)
 		},
 	}
-	runCfg storjscan.Config
+
+	generateCfg wallets.GenerateConfig
+	generateCmd = &cobra.Command{
+		Use:   "generate",
+		Short: "Generated deterministic wallet addresses and register them to the db",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx, _ := process.Ctx(cmd)
+			return wallets.Generate(ctx, generateCfg.Address, generateCfg.Key)
+		},
+	}
 )
 
 func init() {
 	defaults := cfgstruct.DefaultsFlag(rootCmd)
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(generateCmd)
 	process.Bind(runCmd, &runCfg, defaults)
 }
 
